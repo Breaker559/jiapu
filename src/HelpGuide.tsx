@@ -8,6 +8,7 @@ export default function HelpGuide({onClose,onNavigate}:{onClose:()=>void;onNavig
     <p>先添加家人，再用“连接亲属”建立关系。拖动人物卡片可调整位置，点击“框选”后拖出选区，或按住 Shift 拖动，选中多位家人。</p>
     <p>选中多人后，浮动工具可对齐、均匀分布；开启吸附后拖动更容易排齐。“一键排版”会自动整理位置，不满意可撤销。</p>
     <p>“查看全图”可总览整个家族；在“显示设置”里筛选房支、调整称谓显示，点击“查关系”查找两位家人的关系。</p>
+    <p>点击图谱工具栏的“导出”，可保存 PNG、SVG 或 HTML 离线网页；保留当前筛选范围内的整张图谱和排版，网页可离线查找姓名、查看生日与生平。</p>
     <p className="help-note">图谱位置保存在当前浏览器，同一家族在其他设备可单独排版。</p>
     <TextLink onClick={()=>onNavigate('tree')}>打开世系图谱</TextLink>
    </div></details>
@@ -17,7 +18,7 @@ export default function HelpGuide({onClose,onNavigate}:{onClose:()=>void;onNavig
     <TextLink onClick={()=>onNavigate('settings')}>打开家族设置</TextLink>
    </div></details>
    <details><summary><DatabaseBackup size={18}/>备份与恢复</summary><div>
-    <p>家族所有者进入“家族设置 → 备份与迁移”，设置至少 12 个字符的备份密码，导出包含人物、关系、照片和档案的完整备份。</p>
+    <p>家族所有者进入“家族设置 → 备份与迁移”，设置至少 12 个字符的备份密码，导出包含人物、关系、图片、视频和档案的完整备份。</p>
     <p>请单独保存备份密码。恢复时先校验、预览，再创建新家族，现有家族不会被覆盖。</p>
     <TextLink onClick={()=>onNavigate('settings')}>打开家族设置</TextLink>
    </div></details>

@@ -54,3 +54,9 @@
 最新截图为 `tree-household-desktop.png`、`tree-preview-bio.png`、`tree-preview-photos.png`、`tree-preview-mobile.png` 和 `tree-household-dark-mobile.png`。没有世次记录时显示层级，冲突记录不自动改写。妻与母分别依照婚姻和亲子记录显示。
 
 交汇处复核：婚姻称谓移到横线上方，真正连接子女分支的节点显示小圆点；在运行中的示例页测量文字边界，确认文字不与横线中点重叠。局部截图为 `family-junction-detail.png`。
+
+## 图谱导出与 GitHub 文档（2026-10-16）
+
+`qa_tree_export.py` 在隔离家族中验证 PNG、SVG、HTML 下载，整张图谱与屏幕缩放无关、导出不改变排版或视口、同一照片用于不同人物时保留各自头像裁剪、只读成员无法导出私密人物、房支筛选、深色关系明细、离线姓名搜索与定位、缩放、手机适配，以及人物原文不会作为 HTML 执行。SVG 连线和箭头样式显式写入导出文件。
+
+`capture_readme.py` 使用隔离示例数据生成 `docs/images/` 的 8 张截图，总计约 1 MB；人物、故事及画面均为虚构，不读取用户实例。README 提供快速运行、截图、导出矩阵、权限、容量、升级与排错，详细日常规则移至 USER_GUIDE.md。

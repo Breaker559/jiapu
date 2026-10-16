@@ -2,11 +2,13 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ReactFlow, Background, Controls, MiniMap, Handle, Position, BackgroundVariant, BaseEdge, EdgeText, SelectionMode, getSmoothStepPath } from '@xyflow/react';
 import type { EdgeProps, ReactFlowInstance, Viewport } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { createPortal } from 'react-dom';
 import TreePersonPreview from './TreePersonPreview';
+import TreeExportDialog from './TreeExportDialog';
 import TreeArrangementToolbar from './TreeArrangementToolbar';
 import useTreeArrangement from './useTreeArrangement';
 import { personFacts, todayInShanghai } from './personFacts';
-import { Focus, GitFork, Info, Pencil, SlidersHorizontal, Users } from 'lucide-react';
+import { Download, Focus, GitFork, Info, Pencil, SlidersHorizontal, Users } from 'lucide-react';
 import type { Entry } from './types';
 import type { KinshipTerms } from './kinshipTerms';
 import { Avatar, Empty } from './components';
@@ -50,9 +52,10 @@ function FamilyEdge(props:EdgeProps){
 const nodeTypes={person:PersonNode};
 const edgeTypes={lateral:LateralEdge,parent:ParentEdge,family:FamilyEdge};
 
-export default function Tree({people,relations,media=[],fid,open,openPhoto,openRelations,openKinship,terms,focus=''}:{people:Entry[];relations:Entry[];media?:Entry[];fid:string;open:(p:Entry)=>void;openPhoto?:(p:Entry)=>void;openRelations:(r:Entry[])=>void;openKinship?:()=>void;terms?:KinshipTerms;focus?:string}){
+export default function Tree({people,relations,media=[],fid,open,openPhoto,openRelations,openKinship,terms,focus='',familyName='家谱'}:{people:Entry[];relations:Entry[];media?:Entry[];fid:string;open:(p:Entry)=>void;openPhoto?:(p:Entry)=>void;openRelations:(r:Entry[])=>void;openKinship?:()=>void;terms?:KinshipTerms;focus?:string;familyName?:string}){
  const [branch,setBranch]=useState(''),[depth,setDepth]=useState('all');
- const [displayOpen,setDisplayOpen]=useState(false);
+ const [displayOpen,setDisplayOpen]=useState(false),[exportOpen,setExportOpen]=useState(false);
+ const treeRoot=useRef<HTMLDivElement>(null);
  const displayRoot=useRef<HTMLDivElement>(null),displayTrigger=useRef<HTMLButtonElement>(null);
  const displayId=useId();
  const [selecting,setSelecting]=useState(false),[snap,setSnap]=useState(true);
@@ -100,8 +103,9 @@ export default function Tree({people,relations,media=[],fid,open,openPhoto,openR
  const beginDrag=()=>{interacting.current=true;closePreview();arrangement.beginDrag();};
  const endDrag=()=>{arrangement.endDrag();interacting.current=false;};
  const autoLayout=()=>{closePreview();arrangement.autoLayout();requestAnimationFrame(()=>requestAnimationFrame(showAll));};
+ const exportScope=[branch||'全部房支',view==='family'?'家庭树':'关系明细',focus&&depth!=='all'?depth+' 层亲属':''].filter(Boolean).join(' · ');
  if(!people.length)return <Empty icon={GitFork} title="从一位家人开始" description="添加人物后，记录父、母、子、女等亲属关系。"/>;
- return <div className={'tree-wrap'+(selecting?' is-selecting':'')} tabIndex={-1} onKeyDownCapture={e=>{
+ return <div ref={treeRoot} className={'tree-wrap'+(selecting?' is-selecting':'')} tabIndex={-1} onKeyDownCapture={e=>{
   if((e.target as HTMLElement).closest('input,textarea,select,[contenteditable="true"],[role="dialog"],.tree-display-settings'))return;
   const command=e.ctrlKey||e.metaKey;
   if(command&&['a','z','y'].includes(e.key.toLowerCase())){e.preventDefault();e.stopPropagation();closePreview();if(e.key.toLowerCase()==='a')arrangement.selectAll();else if(e.key.toLowerCase()==='y'||e.shiftKey)arrangement.redo();else arrangement.undo();}
@@ -119,6 +123,7 @@ export default function Tree({people,relations,media=[],fid,open,openPhoto,openR
      {focus&&<label className="tree-display-field"><span>关系层数</span><select aria-label="显示关系层数" value={depth} onChange={e=>setDepth(e.target.value)}><option value="all">全部层级</option><option value="1">一层亲属</option><option value="2">两层亲属</option><option value="3">三层亲属</option></select></label>}
     </div>}
    </div>
+   <button className="tree-export-trigger" onClick={()=>{closePreview();setDisplayOpen(false);setExportOpen(true);}}><Download size={14}/>导出</button>
    <button className="tree-fit-view" onClick={showAll}><Focus size={14}/>查看全图</button>
   </div>
   <TreeArrangementToolbar selecting={selecting} setSelecting={value=>{closePreview();setSelecting(value);}} snap={snap} setSnap={setSnap} count={selectionCount} history={arrangement.history} saved={arrangement.saved} align={arrangement.align} autoLayout={autoLayout} undo={arrangement.undo} redo={arrangement.redo} selectAll={()=>{closePreview();arrangement.selectAll();}} clearSelection={arrangement.clearSelection}/>
@@ -134,6 +139,7 @@ export default function Tree({people,relations,media=[],fid,open,openPhoto,openR
   </ReactFlow><svg className="tree-snap-guides" aria-hidden="true">{guides.map(guide=><line key={guide.axis} data-axis={guide.axis} x1={guide.axis==='x'?guide.value*viewport.zoom+viewport.x:guide.from*viewport.zoom+viewport.x} x2={guide.axis==='x'?guide.value*viewport.zoom+viewport.x:guide.to*viewport.zoom+viewport.x} y1={guide.axis==='y'?guide.value*viewport.zoom+viewport.y:guide.from*viewport.zoom+viewport.y} y2={guide.axis==='y'?guide.value*viewport.zoom+viewport.y:guide.to*viewport.zoom+viewport.y}/>)}</svg></div></div>
   <div className="tree-legend"><span className="tree-legend-count">{nodes.length} 人 · {model.rel.length} 条关系</span><span><i/>父母 → 子女</span><span><i className="spouse"/>夫 / 妻及其他家庭关系</span><span className="legend-tip">悬停人物查看资料 · 点击称谓编辑关系</span></div>
 
+  {exportOpen&&createPortal(<TreeExportDialog count={nodes.length} scope={exportScope} onClose={()=>setExportOpen(false)} onExport={async format=>{const {exportTree}=await import('./treeExport');await exportTree({root:treeRoot.current!,nodes,familyName,scope:exportScope,relationCount:model.rel.length,format,today});}}/>,document.body)}
   {preview&&<TreePersonPreview key={preview.person.id} today={today} person={preview.person} media={media} fid={fid} anchor={preview.anchor} onClose={closePreview} onEnter={keepPreview} onLeave={leavePreview} onRelations={()=>{closePreview();openRelations(relations.filter(r=>[r.data.from_id,r.data.to_id].includes(preview.person.id)));}} hasRelations={relations.some(r=>[r.data.from_id,r.data.to_id].includes(preview.person.id))} onOpen={()=>openPerson(preview.person)} onPhoto={p=>{closePreview();openPhoto?.(p);}}/>}
  </div>;
 }

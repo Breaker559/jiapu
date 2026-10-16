@@ -334,3 +334,12 @@
  .tree-workspace .tree-arrangement-hint{font-size:9px}
 }
 @media(max-width:380px){.tree-page-heading .button svg{display:none}.tree-workspace .tree-arrangement-tools{gap:2px}.tree-workspace .tree-tool-group{padding-right:2px}}
+
+/* Export actions stay in the compact graph toolbar. */
+.tree-export-trigger{display:flex;align-items:center;gap:5px;color:var(--accent);padding:6px 8px;border-radius:5px;white-space:nowrap;font-size:11px}
+.tree-export-trigger:hover{background:var(--surface-soft)}
+.tree-export-options>p{font-size:12px;line-height:1.8;margin:0 0 16px}
+.tree-export-options .tree-export-choice{width:100%;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:16px;gap:13px;margin-bottom:10px;white-space:normal}
+.tree-export-choice>svg{flex-shrink:0}.tree-export-choice>span{display:block}.tree-export-choice strong{display:block;font-size:14px;margin-bottom:4px}.tree-export-choice small{display:block;font-size:11px;line-height:1.7;font-weight:400;color:var(--muted)}
+.tree-export-options>.muted{font-size:11px;margin-top:18px}.tree-export-success{color:var(--accent)}
+@media(max-width:760px){.tree-export-trigger{font-size:10px;padding:5px}.tree-workspace .tree-toolbar{gap:3px}.tree-workspace .tree-display-trigger{font-size:10px}.tree-workspace .tree-fit-view{font-size:10px}}

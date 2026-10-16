@@ -7,6 +7,7 @@
 | React / React DOM | 页面界面 | MIT |
 | React Flow (@xyflow/react) | 可操作的关系图 | MIT；界面保留上游署名 |
 | Dagre | 关系图布局 | MIT |
+| html-to-image | 图谱 SVG / PNG 与离线网页快照 | MIT |
 | Lucide | 图标 | ISC |
 | Vite / TypeScript | 前端构建 | MIT / Apache-2.0 |
 | FastAPI / Uvicorn | API 与 Web 服务 | MIT / BSD-3-Clause |
