@@ -3,15 +3,16 @@ import { createPortal } from 'react-dom';
 import { ArrowUpRight, Camera, GitFork, X } from 'lucide-react';
 import { Avatar } from './components';
 import type { Entry } from './types';
-import { personFacts } from './personFacts';
+import { personFacts, birthPresentation } from './personFacts';
+import MediaThumbnail, { isVideo } from './MediaThumbnail';
 
 type Props={person:Entry;today:string;media:Entry[];fid:string;anchor:DOMRect;hasRelations:boolean;onClose:()=>void;onEnter:()=>void;onLeave:()=>void;onRelations:()=>void;onOpen:()=>void;onPhoto:(p:Entry)=>void};
 export default function TreePersonPreview({person,today,media,fid,anchor,hasRelations,onClose,onEnter,onLeave,onRelations,onOpen,onPhoto}:Props){
  const [tab,setTab]=useState('overview'),[position,setPosition]=useState({top:12,left:12});
  const ref=useRef<HTMLDivElement>(null),uid=useId();
- const tabs=[['overview','概览'],['photos','照片'],['bio','生平']];
+ const tabs=[['overview','概览'],['photos','影像'],['bio','生平']];
  const photos=media.filter(m=>m.data.person_ids?.includes(person.id)||m.id===person.data.avatar);
- const facts=personFacts(person,today);
+ const facts=personFacts(person,today),birthday=birthPresentation(person);
  useLayoutEffect(()=>{
   const box=ref.current!.getBoundingClientRect(),width=window.innerWidth,height=window.innerHeight;
   const left=anchor.right+12+box.width<=width-12?anchor.right+12:anchor.left-box.width-12>=12?anchor.left-box.width-12:Math.max(12,(width-box.width)/2);
@@ -24,11 +25,11 @@ export default function TreePersonPreview({person,today,media,fid,anchor,hasRela
   <div className="person-preview-content" role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-${tab}`} tabIndex={0}>
    {tab==='overview'&&<dl>{[
     ['性别',facts.gender],[facts.ageLabel,facts.age],
-    ['阳历出生',person.birth_info?.solar||'尚未记录'],['农历出生',person.birth_info?.lunar||'尚未记录'],
+    [birthday.label,<><span>{birthday.primary}</span>{birthday.secondary&&<small className="birthday-alternate">{birthday.secondary}</small>}</>],
     ...(!person.data.living?[['去世日期',person.death_info?.label||'尚未记录']]:[]),
     ['出生地',person.data.birthplace||'尚未记录'],['别名',person.data.aliases||'尚未记录'],
-   ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
-   {tab==='photos'&&(photos.length?<div className="person-preview-photos">{photos.slice(0,6).map(m=><button key={m.id} onClick={()=>onPhoto(m)} aria-label={`查看照片：${m.data.title||'家族照片'}`}><img loading="lazy" alt={m.data.title||'家族照片'} src={`/api/families/${fid}/media/${m.id}/thumb?v=${m.version}`}/></button>)}</div>:<div className="person-preview-empty"><Camera size={24}/><p>还没有关联照片</p></div>)}
+   ].map(([label,value])=><div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+   {tab==='photos'&&(photos.length?<div className="person-preview-photos">{photos.slice(0,6).map(m=><button key={m.id} onClick={()=>onPhoto(m)} aria-label={`查看${isVideo(m)?'视频':'照片'}：${m.data.title||'家族记忆'}`}><MediaThumbnail media={m} fid={fid}/></button>)}</div>:<div className="person-preview-empty"><Camera size={24}/><p>还没有关联图片或视频</p></div>)}
    {tab==='bio'&&<div className="person-preview-bio"><p>{person.data.bio||'尚未记录生平，可进入完整档案补充。'}</p>{person.data.source&&<small>资料来源：{person.data.source}</small>}</div>}
   </div>
   <footer><button className="preview-relations-action" disabled={!hasRelations} onClick={onRelations}><GitFork size={15}/>亲属关系</button><button onClick={onOpen}>完整档案<ArrowUpRight size={14}/></button></footer>

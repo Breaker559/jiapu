@@ -1,5 +1,5 @@
 from __future__ import annotations
-import csv, hashlib, io, json, os, secrets, shutil, threading, time, zipfile
+import csv, hashlib, io, json, os, re, secrets, shutil, threading, time, zipfile
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, date, timedelta, timezone
@@ -20,8 +20,9 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from .db import *
 from .schemas import *
-from .dates import date_info, next_anniversary
+from .dates import date_info, next_anniversary, LunarDate, MONTHS, DAYS
 from .seed import FAMILY, example, seed_family
+from .videos import IMAGE_LIMIT, VIDEO_LIMIT, FAMILY_MEDIA_LIMIT, looks_like_video, make_video
 
 Image.MAX_IMAGE_PIXELS=30_000_000
 hasher=PasswordHasher()
@@ -58,7 +59,7 @@ async def protection(request,call_next):
     response.headers['X-Content-Type-Options']='nosniff'
     response.headers['Referrer-Policy']='same-origin'
     response.headers['X-Frame-Options']='DENY'
-    response.headers['Content-Security-Policy']="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    response.headers['Content-Security-Policy']="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     if request.url.path.startswith('/api/'):response.headers['Cache-Control']='no-store'
     if SECURE:response.headers['Strict-Transport-Security']='max-age=31536000'
     return response
@@ -121,6 +122,17 @@ def enrich(items):
             item['death_info']=date_info(item['data'].get('death'))
             if item['data'].get('living',True):
                 d=item['data'];item['anniversary']=next_anniversary(d.get('birth',{}),d.get('anniversary_calendar','original'),d.get('leap_policy','regular'),d.get('missing_policy','last'),today_cn())
+                anniversary=item['anniversary']
+                if anniversary:
+                    target=date.fromisoformat(anniversary['date'])
+                    lunar=LunarDate.fromSolarDate(target.year,target.month,target.day)
+                    lunar_month=('闰' if lunar.isLeapMonth else '')+MONTHS[lunar.month-1]+'月'
+                    lunar_day=DAYS[lunar.day-1]
+                    lunar_label=f'农历 {lunar_month}{lunar_day}'
+                    is_lunar=anniversary['calendar']=='lunar'
+                    anniversary.update({'display_month':lunar_month if is_lunar else f'{target.month}月','display_day':lunar_day if is_lunar else str(target.day),
+                                        'primary_label':lunar_label if is_lunar else f'阳历 {target.isoformat()}',
+                                        'secondary_label':f'阳历 {target.isoformat()}' if is_lunar else lunar_label})
     return items
 
 def family_list(db,user):
@@ -304,7 +316,7 @@ def change_family(fid:str,body:FamilyInput,user=Depends(current),db=Depends(db_s
     access(db,fid,user,{'owner'})
     with LOCK:
         f=db.get(Family,fid)
-        if body.cover:rec(db,fid,body.cover,'media')
+        if body.cover and rec(db,fid,body.cover,'media').data.get('media_type')=='video':fail(422,'家族封面请选择图片')
         data=body.model_dump()
         # General settings must not overwrite a separately edited terminology dictionary.
         data['kinship_terms']=f.data.get('kinship_terms',{})
@@ -334,9 +346,15 @@ def validate_record(db,fid,kind,data,rid=None):
     model={'person':PersonInput,'relation':RelationInput,'story':StoryInput}.get(kind)
     if not model:fail(400,'不支持的资料类型')
     data=model(**data).model_dump()
-    if kind=='person' and data.get('avatar'):rec(db,fid,data['avatar'],'media')
+    if kind=='person' and data.get('avatar') and rec(db,fid,data['avatar'],'media').data.get('media_type')=='video':fail(422,'人物头像请选择图片')
     if kind=='story':
         for pid in data['person_ids']:rec(db,fid,pid,'person')
+        data['media_ids']=list(dict.fromkeys(re.findall(r'\bmedia:([a-f0-9]{32})\b',data['body']))) if data['format']=='markdown' else []
+        if len(data['media_ids'])>100:fail(422,'每篇档案最多引用 100 个媒体文件')
+        for mid in data['media_ids']:
+            attachment=db.get(Record,mid)
+            if not attachment or attachment.family_id!=fid or attachment.kind!='media':fail(422,'正文引用的媒体不属于当前家族')
+            if not attachment.deleted and data['privacy']=='family' and attachment.data.get('privacy')=='editors':fail(422,'正文引用了仅编辑可见的媒体，请调整档案或媒体的可见范围')
     if kind=='relation':
         a,b=data['from_id'],data['to_id']
         if a==b:fail(422,'不能把自己关联为自己的亲属')
@@ -466,7 +484,7 @@ def propose(fid:str,body:ProposalInput,user=Depends(current),db=Depends(db_sessi
     if role not in EDITORS and data.get('privacy')=='editors':fail(403,'不能提报仅编辑可见的资料')
     if role not in EDITORS:
         visible={r.id for r in visible_records(records(db,fid),role)}
-        linked=[data.get(k) for k in ('from_id','to_id','avatar') if data.get(k)]+data.get('person_ids',[])
+        linked=[data.get(k) for k in ('from_id','to_id','avatar') if data.get(k)]+data.get('person_ids',[])+data.get('media_ids',[])
         if any(x not in visible for x in linked):fail(404,'关联资料不可访问')
     r=Record(family_id=fid,kind='proposal',data={**body.model_dump(),'data':data,'author_id':user.id,'author':user.name,'status':'pending'});db.add(r);audit(db,fid,user,'提交修改建议');db.commit();return pack(r)
 
@@ -490,7 +508,7 @@ def review(fid:str,pid:str,approve:bool,user=Depends(current),db=Depends(db_sess
 def media_paths(fid,rid):return DATA/'media'/fid/rid
 def readable_media(db,fid,rid,role):
     r=rec(db,fid,rid,'media');visible={x.id for x in visible_records(records(db,fid),role)}
-    if rid not in visible:fail(404,'图片不存在或无权查看')
+    if rid not in visible:fail(404,'媒体不存在或无权查看')
     return r
 
 def make_images(raw:bytes,path:Path):
@@ -506,22 +524,28 @@ def make_images(raw:bytes,path:Path):
     thumb.thumbnail((520,520));thumb.save(path/'thumb.jpg',quality=85)
     return width,height
 
+def make_media(raw,path,filename='',content_type=''):
+    if looks_like_video(raw,filename,content_type):return make_video(raw,path)
+    if len(raw)>IMAGE_LIMIT:fail(413,'单张图片最大 12 MB')
+    width,height=make_images(raw,path)
+    return {'media_type':'image','width':width,'height':height}
+
 @app.post('/api/families/{fid}/media')
 async def upload_media(fid:str,file:UploadFile=File(...),metadata:str=Form('{}'),user=Depends(current),db=Depends(db_session)):
     access(db,fid,user,EDITORS)
     try:meta=MediaMeta(**json.loads(metadata))
-    except (json.JSONDecodeError,ValidationError):fail(422,'图片说明格式不正确')
+    except (json.JSONDecodeError,ValidationError):fail(422,'媒体说明格式不正确')
     for pid in meta.person_ids:rec(db,fid,pid,'person')
-    raw=await file.read(12*1024*1024+1)
-    if len(raw)>12*1024*1024:fail(413,'单张图片最大 12 MB')
+    raw=await file.read(VIDEO_LIMIT+1)
+    if len(raw)>VIDEO_LIMIT:fail(413,'单个视频最大 64 MB，图片最大 12 MB')
     with LOCK:
         used=sum(r.data.get('size',0) for r in records(db,fid)+records(db,fid,True) if r.kind=='media')
-        if used+len(raw)>128*1024**2:fail(413,'此版本每个家族的原图空间上限为 128 MB')
+        if used+len(raw)>FAMILY_MEDIA_LIMIT:fail(413,'此版本每个家族的图片与视频总空间上限为 128 MB')
         rid=uid();path=media_paths(fid,rid)
         try:
-            w,h=make_images(raw,path)
-            data={**meta.model_dump(),'title':meta.title or (file.filename or '照片')[:150],'filename':Path(file.filename or 'image').name,'size':len(raw),'width':w,'height':h,'sha256':hashlib.sha256(raw).hexdigest()}
-            r=Record(id=rid,family_id=fid,kind='media',data=data);db.add(r);audit(db,fid,user,'上传照片',rid,after=data);db.commit()
+            info=make_media(raw,path,file.filename or '',file.content_type or '')
+            data={**meta.model_dump(),**info,'title':meta.title or (file.filename or '家族记忆')[:150],'filename':Path(file.filename or 'media').name,'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+            r=Record(id=rid,family_id=fid,kind='media',data=data);db.add(r);audit(db,fid,user,'上传视频' if info['media_type']=='video' else '上传照片',rid,after=data);db.commit()
         except Exception:
             db.rollback()
             if path.exists():shutil.rmtree(path)
@@ -533,6 +557,15 @@ def get_media(fid:str,rid:str,variant:str,person:str='',user=Depends(current),db
     role=access(db,fid,user);r=readable_media(db,fid,rid,role)
     if variant not in {'original','display','thumb','avatar'}:fail(404,'图片规格不存在')
     if variant=='original' and role not in EDITORS:fail(403,'原图下载仅向编辑和所有者开放')
+    if r.data.get('media_type')=='video':
+        if variant=='avatar':fail(422,'视频不能作为头像')
+        path=media_paths(fid,rid)/('thumb.jpg' if variant=='thumb' else 'original')
+        if not path.is_file():fail(404,'媒体文件缺失，请从备份恢复')
+        if variant=='thumb':return FileResponse(path,media_type='image/jpeg')
+        if variant=='original':
+            audit(db,fid,user,'下载原视频',rid);db.commit()
+            return FileResponse(path,media_type='application/octet-stream',filename=r.data.get('filename','video.mp4'))
+        return FileResponse(path,media_type=r.data['mime_type'])
     path=media_paths(fid,rid)/({'display':'display.jpg','thumb':'thumb.jpg','avatar':'avatar.jpg'}.get(variant,'original'))
     if variant=='avatar' and person:
         p=rec(db,fid,person,'person')
@@ -567,6 +600,7 @@ def save_crop(path,body,filename='avatar.jpg'):
 @app.post('/api/families/{fid}/media/{rid}/crop')
 def crop_media(fid:str,rid:str,body:Crop,user=Depends(current),db=Depends(db_session)):
     access(db,fid,user,EDITORS);r=rec(db,fid,rid,'media');path=media_paths(fid,rid)
+    if r.data.get('media_type')=='video':fail(422,'视频不能裁剪为头像')
     if body.rotation not in {0,90,180,270}:fail(422,'只支持直角旋转')
     if body.person_id:
         rec(db,fid,body.person_id,'person')
@@ -621,7 +655,7 @@ def open_backup(raw,password):
         for r in rows:
             if r['kind']=='media':
                 key=f'media/{r["id"]}/original';allowed|={key,f'media/{r["id"]}/avatar.jpg'}
-                if z.getinfo(key).file_size>12*1024*1024:fail(413,'备份中存在超限图片')
+                if z.getinfo(key).file_size>(VIDEO_LIMIT if r['data'].get('media_type')=='video' else IMAGE_LIMIT):fail(413,'备份中存在超限媒体')
                 if hashlib.sha256(z.read(key)).hexdigest()!=r['data']['sha256']:fail(422,'图片完整性校验失败')
         if any(i.filename not in allowed for i in entries):fail(422,'备份中含未声明文件')
         FamilyInput(**m['family'])
@@ -649,9 +683,12 @@ async def backup_restore(file:UploadFile=File(...),password:str=Form(...),user=D
             if v.get(key):
                 if v[key] not in mapping:fail(422,'备份含无法解析的资料关联')
                 v[key]=mapping[v[key]]
-        if 'person_ids' in v:
-            if any(x not in mapping for x in v['person_ids']):fail(422,'备份含无法解析的人物关联')
-            v['person_ids']=[mapping[x] for x in v['person_ids']]
+        for key in ['person_ids','media_ids']:
+            if key in v:
+                if any(x not in mapping for x in v[key]):fail(422,'备份含无法解析的资料关联')
+                v[key]=[mapping[x] for x in v[key]]
+        if v.get('format')=='markdown' and isinstance(v.get('body'),str):
+            v['body']=re.sub(r'\bmedia:([a-f0-9]{32})\b',lambda match:'media:'+mapping.get(match[1],match[1]),v['body'])
         return v
     with LOCK:
         try:
@@ -667,11 +704,12 @@ async def backup_restore(file:UploadFile=File(...),password:str=Form(...),user=D
                     data['author_id']='migrated';data['data']=remap(data['data'])
                 elif kind=='media':
                     crops={mapping[pid]:Crop(**crop).model_dump(exclude={'person_id'}) for pid,crop in data.get('crops',{}).items() if pid in mapping}
-                    metadata=MediaMeta(**data).model_dump();blob=z.read(f'media/{item["id"]}/original');w,h=make_images(blob,media_paths(fid,newid))
-                    data={**metadata,'filename':Path(data.get('filename','image')).name,'size':len(blob),'width':w,'height':h,'sha256':hashlib.sha256(blob).hexdigest(),'crops':crops}
+                    metadata=MediaMeta(**data).model_dump();blob=z.read(f'media/{item["id"]}/original');info=make_media(blob,media_paths(fid,newid),data.get('filename',''))
+                    data={**metadata,**info,'filename':Path(data.get('filename','media')).name,'size':len(blob),'sha256':hashlib.sha256(blob).hexdigest(),'crops':crops if info['media_type']=='image' else {}}
+                    if info['media_type']=='video':crops={}
                     for pid,crop in crops.items():save_crop(media_paths(fid,newid),Crop(**crop),'avatar-'+pid+'.jpg')
                     av=f'media/{item["id"]}/avatar.jpg'
-                    if av in z.namelist():
+                    if av in z.namelist() and info['media_type']=='image':
                         with Image.open(io.BytesIO(z.read(av))) as im:ImageOps.fit(im.convert('RGB'),(400,400)).save(media_paths(fid,newid)/'avatar.jpg')
                 row=Record(id=newid,family_id=fid,kind=kind,data=data,deleted=bool(item.get('deleted')),version=item.get('version',1));prepared.append(row);db.add(row)
             db.flush()

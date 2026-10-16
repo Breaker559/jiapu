@@ -69,6 +69,60 @@
 .auth-links{flex-wrap:wrap}.auth-links button:disabled{opacity:.5}.auth-card>.auth-privacy{font-size:10px;line-height:1.8}
 .auth-panel,.auth-card{min-width:0}
 
+/* Stories share the family media library; birthdays keep their original calendar. */
+.media-thumbnail{display:block;position:relative;width:100%;height:100%;min-height:0;overflow:hidden;background:var(--surface-soft)}
+.media-thumbnail>img{width:100%;height:100%;object-fit:cover;display:block}
+.media-thumbnail .media-play{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#173c3dc9;color:white;padding:0}
+.media-thumbnail .media-duration{position:absolute;right:6px;bottom:6px;background:#152f35c9;color:white;padding:3px 5px;border-radius:4px;font-size:10px;white-space:nowrap}
+.home-photos button>.media-thumbnail{position:relative;inset:auto;padding:0;background:var(--surface-soft);height:100%;color:inherit}
+.album-card>div>.media-thumbnail{position:relative;inset:auto;padding:0;background:var(--surface-soft);border-radius:0;display:block;font-size:inherit}
+.profile-photos .media-thumbnail,.person-preview-photos .media-thumbnail{height:100%;aspect-ratio:1}
+.person-preview-photos .media-play{width:25px;height:25px}.person-preview-photos .media-play svg{width:14px}.person-preview-photos .media-duration{font-size:8px;bottom:3px;right:3px}
+.lightbox-video{width:100%;max-height:60vh;display:block;background:#10191d;object-fit:contain}
+.upload-item>video{width:55px;height:55px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.story-editor{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:18px 0 22px}
+.story-editor-toolbar{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:8px;background:var(--surface-soft);border-bottom:1px solid var(--line)}
+.story-editor-toolbar>button{display:flex;align-items:center;gap:6px;min-height:34px;padding:7px 9px;border-radius:5px;font-size:11px;color:var(--text)}
+.story-editor-toolbar>button:hover,.story-editor-toolbar>button[aria-pressed=true]{background:var(--surface);color:var(--accent)}
+.story-existing-media{display:flex;gap:8px;padding:10px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.story-existing-media>select{font-size:11px;padding:7px;min-width:0}
+.story-existing-media>select:first-child{flex:1;min-width:180px}
+.story-editor>textarea{border:0;border-radius:0;display:block;width:100%;padding:16px;line-height:1.9;font-family:Consolas,"Microsoft YaHei",monospace;font-size:13px;min-height:250px}
+.story-editor-preview{padding:18px;min-height:260px;max-height:500px;overflow:auto}
+.story-editor-hint{padding:10px 14px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.7;margin:0}
+.story-markdown{font-size:14px;line-height:1.9;overflow-wrap:anywhere;color:var(--text)}
+.story-markdown p{margin:0 0 16px;white-space:pre-wrap}
+.story-markdown h1,.story-markdown h2,.story-markdown h3,.story-markdown h4{margin:24px 0 12px;line-height:1.45}
+.story-markdown h1{font-size:26px}.story-markdown h2{font-size:21px}.story-markdown h3{font-size:17px}
+.story-markdown ul,.story-markdown ol{padding-left:24px;margin:12px 0}
+.story-markdown blockquote{margin:16px 0;padding:10px 16px;border-left:3px solid var(--accent);background:var(--surface-soft)}
+.story-markdown blockquote p:last-child{margin-bottom:0}
+.story-markdown pre{padding:14px;background:var(--surface-soft);border:1px solid var(--line);border-radius:7px;overflow:auto}
+.story-markdown :not(pre)>code{padding:2px 4px;border-radius:4px;background:var(--surface-soft)}
+.story-markdown hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.markdown-table-scroll{overflow-x:auto;margin:16px 0}
+.story-markdown table{border-collapse:collapse;width:100%;font-size:12px}
+.story-markdown th,.story-markdown td{border:1px solid var(--line);padding:8px 12px;text-align:left}
+.story-markdown th{background:var(--surface-soft)}
+.story-media{display:block;margin:18px auto;text-align:center;max-width:100%}
+.story-media>img,.story-media>video{display:block;width:auto;max-width:100%;max-height:580px;margin:0 auto;border-radius:8px;object-fit:contain}
+.story-media>video{width:100%;background:#10191d}
+.story-media>small{display:block;margin-top:7px;font-size:11px;color:var(--muted)}
+.story-media-missing{display:block;padding:16px;border:1px dashed var(--line);border-radius:7px;color:var(--muted);font-size:12px}
+.profile-birthday{padding:20px 22px;margin:24px 0 18px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.profile-birthday>span{display:flex;gap:7px;align-items:center;color:var(--accent);font-size:12px;margin-bottom:9px}
+.profile-birthday>strong{display:block;font-size:23px;line-height:1.5;font-weight:600}
+.profile-birthday>small{display:block;color:var(--muted);font-size:11px;margin-top:8px}
+.profile-birthday>p{font-size:11px;color:var(--muted);margin:10px 0 0}
+.birthday-alternate{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+.member-birth-secondary{display:block;font-size:10px;color:var(--muted);margin:3px 0 0 23px}
+.birthday-row .birthday-secondary{font-size:9px;opacity:.8;margin-top:3px}
+.calendar-birthday-date{text-align:right}
+.calendar-birthday-date>strong{display:block}
+.calendar-birthday-date>small{display:block;color:var(--muted);font-size:10px;margin-top:5px}
+@media(max-width:760px){.story-editor-toolbar>button{padding:7px;font-size:10px}.story-editor>textarea{padding:12px}.story-existing-media>select:first-child{min-width:150px}.story-markdown{font-size:13px}.profile-birthday{padding:17px}.profile-birthday>strong{font-size:21px}.story-markdown h1{font-size:23px}.story-markdown h2{font-size:19px}.story-markdown h3{font-size:16px}}
+@media print{.story-media video{display:none}.story-media:has(video):before{content:'视频附件：请在家谱网站播放';display:block;font-size:10pt;color:#344}.story-markdown img{break-inside:avoid;max-height:160mm}}
+
 .breadcrumb{min-width:0}
 .breadcrumb>a{display:flex;align-items:center;min-width:0;min-height:36px;padding:4px 6px;border-radius:6px;color:var(--muted);text-decoration:none;transition:color .15s,background .15s}
 .breadcrumb>a>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

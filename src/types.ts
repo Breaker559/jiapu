@@ -1,5 +1,5 @@
 export type FamilyDate = {calendar?: 'solar'|'lunar'; year?: number|null; month?: number|null; day?: number|null; leap?: boolean; approximate?: boolean; original?: string};
-export type Entry = {id:string; kind:string; data:Record<string,any>; version:number; created?:string; updated?:string; deleted?:boolean; birth_info?:any; death_info?:any; anniversary?:{date:string;days:number;calendar:string}|null};
+export type Entry = {id:string; kind:string; data:Record<string,any>; version:number; created?:string; updated?:string; deleted?:boolean; birth_info?:any; death_info?:any; anniversary?:{date:string;days:number;calendar:string;display_month?:string;display_day?:string;primary_label?:string;secondary_label?:string}|null};
 export type Family = {id:string;name:string;role:string;[key:string]:any};
 export type State = {family:Family;records:Entry[];members:any[];audit:any[]};
 export const relationNames: Record<string,string> = {

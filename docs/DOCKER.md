@@ -17,7 +17,7 @@ docker compose -f compose.sqlite.yaml ps
 
 在 `.env` 设置 `QINPU_ALLOW_REGISTRATION=0` 并重新启动 Compose 服务可从部署层关闭注册入口与注册 API，保留邀请码加入；后台不能覆盖此关闭设置，需要先将环境变量改为 `1` 并重新创建服务。普通注册账号不是站点管理员，不会读取已有家族资料，也不能访问站点后台。注册和登录有基本频率限制；邮箱目前用作登录名，不发送验证或找回邮件，用户需保存恢复码。登录后点击右上角头像菜单，可查看账号、修改密码或退出登录；左下角提供“使用帮助”。
 
-项目名固定为 `jiapu`，中文路径可直接使用；默认命名卷为 `jiapu_family_data`。数据库、照片和相关数据均挂载在 `/app/data`。应用以 UID `10001` 的非 root 用户运行，新命名卷会沿用镜像中的目录权限。容器使用单个 API 进程，请保持单副本，不要增加 Uvicorn workers。
+项目名固定为 `jiapu`，中文路径可直接使用；默认命名卷为 `jiapu_family_data`。数据库、图片、视频和相关数据均挂载在 `/app/data`。应用以 UID `10001` 的非 root 用户运行，新命名卷会沿用镜像中的目录权限。容器使用单个 API 进程，请保持单副本，不要增加 Uvicorn workers。
 
 ## 局域网 / NAS
 
@@ -50,7 +50,7 @@ QINPU_SECURE_COOKIE=1
 QINPU_TRUSTED_PROXIES=172.30.0.0/24
 ```
 
-`family.example.com` 和 `172.30.0.0/24` 均需替换为实际域名和代理的来源 IP / 容器网络。仅信任真实代理，避免对可直接访问的应用端口设置 `*`。代理需转发原始 `Host`、`X-Forwarded-For`、`X-Forwarded-Proto`。Nginx 的上传限制应设置为至少 `260m`，超时应覆盖照片上传和加密备份操作。宿主机 Caddy 最小配置如下：
+`family.example.com` 和 `172.30.0.0/24` 均需替换为实际域名和代理的来源 IP / 容器网络。仅信任真实代理，避免对可直接访问的应用端口设置 `*`。代理需转发原始 `Host`、`X-Forwarded-For`、`X-Forwarded-Proto`。Nginx 的上传限制应设置为至少 `260m`，超时应覆盖图片、视频上传和加密备份操作。宿主机 Caddy 最小配置如下：
 
 ```caddyfile
 family.example.com {
@@ -157,3 +157,7 @@ curl --fail http://127.0.0.1:8765/api/health
 - 数据看似消失：检查当前项目名和卷是否与原部署一致，再检查使用的是 SQLite 还是 PostgreSQL。
 
 当前开发机没有 Docker 引擎。已进行应用构建、后端测试和配置静态校验；Linux 镜像构建、数据库服务、卷重建持久化需在 Docker 主机运行以上脚本确认。
+
+## 媒体与文章
+
+镜像会安装 Pillow 和 PyAV（含所需 FFmpeg 运行库），用于图片处理、视频校验和封面生成；无需单独启动转码服务。视频保存在同一持久数据卷，完整实例备份和加密家族包均包括视频及 Markdown 中的媒体引用。单图 12 MB、单视频 64 MB，家族媒体原文件合计 128 MB。应用不自动转码，支持 MP4/H.264 和 WebM，详细音视频编码见 README。

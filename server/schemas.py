@@ -90,6 +90,8 @@ class RelationInput(BaseModel):
 class StoryInput(BaseModel):
     title: str=Field(min_length=1,max_length=120)
     body: str=Field(default='',max_length=30000)
+    format: Literal['plain','markdown']='plain'
+    media_ids: list[str]=Field(default_factory=list,max_length=100)
     category: Literal['家族故事','家族大事','修谱笔记','资料来源']='家族故事'
     date: FamilyDate=Field(default_factory=FamilyDate)
     person_ids: list[str]=Field(default_factory=list,max_length=100)

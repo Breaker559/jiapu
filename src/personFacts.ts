@@ -18,6 +18,14 @@ function displayDate(value:FamilyDate|undefined,info:any){
  return (value.approximate?'约 ':'')+(value.year?value.year+'年':'')+(value.month?value.month+'月':'')+(value.day?value.day+'日':'');
 }
 
+export function birthPresentation(person:Entry){
+ const value=person.data.birth as FamilyDate|undefined,info=person.birth_info;
+ const lunar=value?.calendar==='lunar';
+ const primary=displayDate(value,info);
+ const alternate=lunar?info?.solar:info?.lunar;
+ return {label:lunar?'农历生日':'阳历生日',primary,secondary:alternate?`${lunar?'阳历':'农历'} ${alternate}`:'',original:value?.original||''};
+}
+
 export function personFacts(person:Entry,today=todayInShanghai()){
  const {birth,death}=person.data as {birth?:FamilyDate;death?:FamilyDate};
  const living=person.data.living!==false;
