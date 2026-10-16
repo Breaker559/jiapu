@@ -1,0 +1,25 @@
+# Simple deployment: docker compose -f compose.sqlite.yaml up -d --build --wait
+# The fixed name also works when the source folder has a Chinese name.
+name: jiapu
+services:
+  app:
+    build: .
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "${QINPU_BIND_ADDRESS:-127.0.0.1}:${QINPU_PORT:-8765}:8765"
+    environment:
+      QINPU_ALLOWED_HOSTS: "${QINPU_ALLOWED_HOSTS:-localhost,127.0.0.1}"
+      QINPU_ORIGINS: "${QINPU_ORIGINS:-http://127.0.0.1:8765,http://localhost:8765}"
+      QINPU_SECURE_COOKIE: "${QINPU_SECURE_COOKIE:-0}"
+      QINPU_ALLOW_REGISTRATION: "${QINPU_ALLOW_REGISTRATION:-1}"
+      FORWARDED_ALLOW_IPS: "${QINPU_TRUSTED_PROXIES:-127.0.0.1}"
+    volumes:
+      - family_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  family_data:

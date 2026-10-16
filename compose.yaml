@@ -1,0 +1,43 @@
+name: jiapu-postgres
+services:
+  app:
+    build: .
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "${QINPU_BIND_ADDRESS:-127.0.0.1}:${QINPU_PORT:-8765}:8765"
+    environment:
+      DATABASE_URL: "postgresql+psycopg://qinpu:${QINPU_DB_PASSWORD:?Set QINPU_DB_PASSWORD in .env}@db:5432/qinpu"
+      QINPU_ALLOWED_HOSTS: "${QINPU_ALLOWED_HOSTS:-localhost,127.0.0.1}"
+      QINPU_ORIGINS: "${QINPU_ORIGINS:-http://127.0.0.1:8765,http://localhost:8765}"
+      QINPU_SECURE_COOKIE: "${QINPU_SECURE_COOKIE:-0}"
+      QINPU_ALLOW_REGISTRATION: "${QINPU_ALLOW_REGISTRATION:-1}"
+      FORWARDED_ALLOW_IPS: "${QINPU_TRUSTED_PROXIES:-127.0.0.1}"
+    volumes:
+      - media:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      POSTGRES_DB: qinpu
+      POSTGRES_USER: qinpu
+      POSTGRES_PASSWORD: "${QINPU_DB_PASSWORD:?Set QINPU_DB_PASSWORD in .env}"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U qinpu -d qinpu"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+volumes:
+  media:
+  database:
