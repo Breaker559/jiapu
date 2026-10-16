@@ -1,6 +1,7 @@
 """Markdown, mixed media and birthday UI acceptance in an isolated family."""
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import time
@@ -129,6 +130,51 @@ try:
         page.screenshot(path=str(OUT / 'markdown-reader-dark.png'), full_page=True, animations="disabled")
         dlg.get_by_role('button', name='关闭', exact=True).click()
         page.get_by_role('button', name='切换浅色模式', exact=True).click()
+
+        # Reproduce editing pre-Markdown demo archives as well as saved plain text.
+        greeting = '## 你好\n一张照片、一段口述、一个熟悉的名字，都是家族故事的起点。\n\n试着从一位你熟悉的长辈开始，补充他的经历，邀请家人一起留下记忆。此处内容为产品演示，可在创建自己的家族后修改。'
+        for title, legacy in [('未指定格式的旧档案', True), ('已保存为纯文本的档案', False)]:
+            response = page.request.post(BASE + f'/api/families/{fid}/records/story', headers={'X-CSRF-Token': account['csrf']}, data={'data': {'title': title, 'body': greeting, 'format': 'plain'}})
+            assert response.ok, response.text()
+            row = response.json()
+            if legacy:
+                # Only touch this test's disposable database to emulate old seed data.
+                row['data'].pop('format')
+                with sqlite3.connect(DATA / 'qinpu.db') as db:
+                    db.execute('UPDATE records SET data=? WHERE id=?', (json.dumps(row['data']), row['id']))
+            page.reload()
+            card = page.locator('.story-card').filter(has_text=title)
+            card.click()
+            dlg.get_by_role('button', name='编辑档案', exact=True).click()
+            expect(dlg.get_by_label('正文格式', exact=True)).to_have_value('markdown' if legacy else 'plain')
+            dlg.get_by_label('正文', exact=True).fill(greeting)
+            dlg.get_by_role('button', name='预览文章', exact=True).click()
+            if not legacy:
+                # An explicit plain choice must still survive preview, save and reload.
+                expect(dlg.get_by_label('文章预览').locator('.prose')).to_have_text(greeting)
+                expect(dlg.get_by_role('button', name='切换为 Markdown', exact=True)).to_be_visible()
+                dlg.get_by_role('button', name='保存档案', exact=True).click()
+                expect(dlg).not_to_be_visible()
+                page.reload()
+                card.click()
+                expect(dlg.locator('.prose')).to_have_text(greeting)
+                dlg.get_by_role('button', name='编辑档案', exact=True).click()
+                dlg.get_by_role('button', name='切换为 Markdown', exact=True).click()
+                expect(dlg.get_by_label('正文', exact=True)).to_have_value(greeting)
+                dlg.get_by_role('button', name='预览文章', exact=True).click()
+            expect(dlg.get_by_label('文章预览').get_by_role('heading', name='你好', level=2, exact=True)).to_be_visible()
+            dlg.get_by_role('button', name='保存档案', exact=True).click()
+            expect(dlg).not_to_be_visible()
+            page.reload()
+            assert '##' not in card.inner_text()
+            card.click()
+            expect(dlg.get_by_role('heading', name='你好', level=2, exact=True)).to_be_visible()
+            dlg.get_by_role('button', name='编辑档案', exact=True).click()
+            expect(dlg.get_by_label('正文格式', exact=True)).to_have_value('markdown')
+            expect(dlg.get_by_label('正文', exact=True)).to_have_value(greeting)
+            dlg.get_by_role('button', name='取消', exact=True).click()
+        page.get_by_role('button', name='家族书', exact=True).click()
+        expect(page.locator('.book-story').get_by_role('heading', name='你好', level=2, exact=True)).to_have_count(2)
         page.get_by_role('button', name='家族成员', exact=True).click()
         for name, primary, secondary in [('农历家人', '2024年正月初一', '阳历 2024-02-10'), ('阳历家人', '2024.02.10', '农历 2024年正月初一')]:
             page.locator('.member-card').filter(has_text=name).click()
@@ -143,7 +189,7 @@ try:
         page.screenshot(path=str(OUT / 'memories-home.png'), full_page=True, animations="disabled")
         assert not errors, errors
         browser.close()
-        print(json.dumps({'passed': True, 'checks': ['home-mixed-upload', 'video-playback-and-download', 'gallery-posters', 'markdown-import-upload-preview-save-reload-export', 'safe-markdown', 'mobile-dark', 'primary-calendar-birthday'], 'page_errors': errors}, ensure_ascii=False))
+        print(json.dumps({'passed': True, 'checks': ['home-mixed-upload', 'video-playback-and-download', 'gallery-posters', 'markdown-import-upload-preview-save-reload-export', 'legacy-markdown-edit-read-excerpt-book', 'explicit-plain-preserved-and-convertible', 'safe-markdown', 'mobile-dark', 'primary-calendar-birthday'], 'page_errors': errors}, ensure_ascii=False))
 except Exception:
     if 'page' in locals():
         try:

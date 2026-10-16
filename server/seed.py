@@ -24,8 +24,8 @@ def example():
         note='仅示例共同育儿，不表示婚姻或伴侣关系。' if kind=='coparent' else '婚姻已结束，分别保留与子女的关系。' if kind=='former_spouse' else ''
         records.append({'id':f'r{i}','kind':'relation','data':{'from_id':a,'to_id':b,'type':kind,'certainty':'confirmed','note':note,'source':'演示资料（虚构）'},'version':1})
     records += [
-      {'id':'s1','kind':'story','data':{'title':'把散落的记忆，慢慢收集起来','body':'一张照片、一段口述、一个熟悉的名字，都是家族故事的起点。\n\n试着从一位你熟悉的长辈开始，补充他的经历，邀请家人一起留下记忆。此处内容为产品演示，可在创建自己的家族后修改。','category':'家族故事','date':{'calendar':'solar','year':2026,'month':10,'day':1},'person_ids':['p1','p2'],'privacy':'family','source':'产品演示'},'version':1},
-      {'id':'s2','kind':'story','data':{'title':'整理老照片的三个线索','body':'先记下拍摄时间和地点，再辨认照片中的人物。\n不确定的细节先写在备注中，等家人一起确认。原图会与人物资料一起保存。','category':'修谱笔记','date':{'calendar':'solar','year':2026,'month':10,'day':8},'person_ids':[],'privacy':'family','source':'产品演示'},'version':1}
+      {'id':'s1','kind':'story','data':{'format':'markdown','title':'把散落的记忆，慢慢收集起来','body':'一张照片、一段口述、一个熟悉的名字，都是家族故事的起点。\n\n试着从一位你熟悉的长辈开始，补充他的经历，邀请家人一起留下记忆。此处内容为产品演示，可在创建自己的家族后修改。','category':'家族故事','date':{'calendar':'solar','year':2026,'month':10,'day':1},'person_ids':['p1','p2'],'privacy':'family','source':'产品演示'},'version':1},
+      {'id':'s2','kind':'story','data':{'format':'markdown','title':'整理老照片的三个线索','body':'先记下拍摄时间和地点，再辨认照片中的人物。\n不确定的细节先写在备注中，等家人一起确认。原图会与人物资料一起保存。','category':'修谱笔记','date':{'calendar':'solar','year':2026,'month':10,'day':8},'person_ids':[],'privacy':'family','source':'产品演示'},'version':1}
     ]
     return records
 
